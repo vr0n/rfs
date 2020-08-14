@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Remote File System IP for internal network
+IRFS="192.168.0.104"
+
+# Remote File System IP for external network
+#ERFS="XXX.XXX.X.XXX"
+
+# SSH Config HostName for Jump Box
+JB="rfs"
+
+# Remote File System SSH UserName
+RU="vr0n"
+
+# Remote File System remote path (path to directory on remote machine)
+RPATH="/home/vr0n/drives/crypton/Documents"
+
+# Local path variable LPATH mustbe edited as well (about 16 lines down!)
+while [ 1 ]; do
+	# Grab logged in user
+	WHO=$(who | awk -F " " '{print $1}')
+	# Check if rfs is mounted for user
+	VAL=$(cat /proc/mounts | grep $IRFS'\|'$JB':/' | awk -F " " '{print $2}' | grep $WHO)
+
+	if [[ $VAL == "" ]]; then
+		# We still care about our root user, ya know...
+		if [[ $WHO != "root" ]]; then
+			HOME="/home/$WHO"
+		else
+			HOME="/root"
+		fi
+
+		# Local path to mount Remote File System
+		LPATH="$HOME/Documents"
+
+		# Get full path of current mount, if it does exist for another user
+		MP=$(cat /proc/mounts | grep $IRFS'\|'$JB':/' | awk -F " " '{print $2}')
+
+		# Unount it if it's under a different user
+		if [[ $MP != "" ]]; then
+			echo "Unmounting..."
+			fusermount -uz $MP 2>/dev/null
+		fi
+
+		#notify-send -t 2000 'Connecting to RFS'
+		# switched to logger as notify-send can't be run in background
+		logger 'Connecting to RFS'
+
+		#Check local
+		if ssh $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
+		then
+			sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$IRFS:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Internally';
+		# Check external
+		## OPTION 1 (You have a jump box and you have setup your ~/.ssh/config):
+		elif ssh rfs '[ -d $RPATH ]' 2>/dev/null;
+		then
+			sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $JB:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Externally';
+		## OPTION 2 (You have a jump box and you have NOT setup your ~/.ssh/config):
+		#elif ssh -o ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
+		#then
+			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO),ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
+		## OPTION 3 (You do not have a jump box, in which case you probably do not need to setup your ~/.ssh/config):
+		#elif ssh $RU@ERFS '[ -d $RPATH ]' 2>/dev/null;
+		#then
+			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$ERFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
+		# If all else fails...
+		else
+			logger 'Could Not Connect...'
+			logger 'No Server Found...'
+		fi
+	fi
+	sleep 5m
+done &
