@@ -1,4 +1,4 @@
-###Remote File System script
+### Remote File System script
 
 This is a script I use as a systemd service to connect to a remote
 file system I maintain. If you use a lot of junk devices like I do,
@@ -10,8 +10,8 @@ it is VERY VERY important that you have someway to back up the data
 you are using. If the disk fails, all of your devices sharing this 
 data lose the data.
 
-##HALT!!!
-##This script will NOT WORK with its defaults even if you set all of the variables!!!!
+## HALT!!!
+## This script will NOT WORK with its defaults even if you set all of the variables!!!!
 
 There are three options for running this script after the variables
 have been configured (the default is OPTION 1):
@@ -26,11 +26,11 @@ for both the jumpbox and the server holding the remote file system.
 (Obviously, it doesn't make a differnce for OPTION 3 since you are
 only using one machine remote machine).
 
-##OPTION 1 setup:
+## OPTION 1 setup:
 OPTION 1 is what I use because it's "cleaner" and allows me to share
 the script without sharing my jumpbox's public IP address.
 
-#Setup:
+# Setup:
 1. Have a jumpbox
 2. Have a server on your local network that hosts the data you want to mount remotely
 3. Get their IP address (for this example, jumpbox will be 1.1.1.1 [a public ip address] and the file server will be 192.168.0.104 [LAN IP address])
@@ -43,23 +43,23 @@ the script without sharing my jumpbox's public IP address.
 	'''
 5. From the above example, if everything is setup correctly, you will be able to use OPTION 1 to mount the remote file system locally through your jumpbox
 
-##OPTION 2 setup:
+## OPTION 2 setup:
 OPTION 2 is probably what most people are looking for (maybe I should've made it the 
 default, but it's not what I use, so, ya know...)
 
-#Setup:
+# Setup:
 1. Have a jumpbox
 2. Have a server on your local network that hosts the data you want to mount remotely
 3. Get their IP address (for this example, jumpbox will be 1.1.1.1 [a public ip address] and the file server will be 192.168.0.104 [LAN IP address])
 4. Uncomment and edit the variables in the script as necessary (they should be clearly marked with comments)
 
-##OPTION 3 setup:
+## OPTION 3 setup:
 Maybe someone will find this useful, but probably not
 
-#Setup:
+# Setup:
 1. Have a jumpbox that also hosts the data you want to mount locally
 2. Get the public IP address of the box
 3. Uncomment and edit the variables in the script as necessary (they should be clearly marked with comments)
 
-###To-Do:
+### To-Do:
 - "install" script to make this a systemd service (obviously, this only works if you are using systemd)
