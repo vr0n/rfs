@@ -18,7 +18,7 @@ RPATH="/home/vr0n/drives/crypton/Documents"
 # Local path variable LPATH mustbe edited as well (about 16 lines down!)
 while [ 1 ]; do
 	# Grab logged in user
-	WHO=$(who | awk -F " " '{print $1}')
+	WHO=$(who | awk -F " " '{print $1}' | head -n 1)
 	# Check if rfs is mounted for user
 	VAL=$(cat /proc/mounts | grep $IRFS'\|'$JB':/' | awk -F " " '{print $2}' | grep $WHO)
 
@@ -49,18 +49,18 @@ while [ 1 ]; do
 		#Check local
 		if ssh $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
 		then
-			sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$IRFS:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Internally';
+			{ sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$IRFS:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Internally'; } || logger 'Failed to connect Internally...'
 		# Check external
 		## OPTION 1 (You have a jump box and you have setup your ~/.ssh/config):
 		elif ssh rfs '[ -d $RPATH ]' 2>/dev/null;
 		then
-			sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $JB:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Externally';
+			{ sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $JB:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Externally'; } || logger 'Failed to connect Externally...'
 		## OPTION 2 (You have a jump box and you have NOT setup your ~/.ssh/config):
 		#elif ssh -o ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
 		#then
 			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO),ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
 		## OPTION 3 (You do not have a jump box, in which case you probably do not need to setup your ~/.ssh/config):
-		#elif ssh $RU@ERFS '[ -d $RPATH ]' 2>/dev/null;
+		#elif ssh $RU@$ERFS '[ -d $RPATH ]' 2>/dev/null;
 		#then
 			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$ERFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
 		# If all else fails...
