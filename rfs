@@ -20,9 +20,9 @@ while [ 1 ]; do
 	# Grab logged in user
 	WHO=$(who | awk -F " " '{print $1}' | head -n 1)
 	# Check if rfs is mounted for user
-	VAL=$(cat /proc/mounts | grep $IRFS'\|'$JB':/' | awk -F " " '{print $2}' | grep $WHO)
+	VAL=$(grep $IRFS'\|'$JB':/' /proc/mounts)
 
-	if [[ $VAL == "" ]]; then
+	if [ -z "$VAL" ]; then
 		# We still care about our root user, ya know...
 		if [[ $WHO != "root" ]]; then
 			HOME="/home/$WHO"
@@ -33,16 +33,6 @@ while [ 1 ]; do
 		# Local path to mount Remote File System
 		LPATH="$HOME/Documents"
 
-		# Get full path of current mount, if it does exist for another user
-		MP=$(cat /proc/mounts | grep $IRFS'\|'$JB':/' | awk -F " " '{print $2}')
-
-		# Unount it if it's under a different user
-		if [[ $MP != "" ]]; then
-			echo "Unmounting..."
-			fusermount -uz $MP 2>/dev/null
-		fi
-
-		#notify-send -t 2000 'Connecting to RFS'
 		# switched to logger as notify-send can't be run in background
 		logger 'Connecting to RFS'
 
@@ -68,6 +58,14 @@ while [ 1 ]; do
 			logger 'Could Not Connect...'
 			logger 'No Server Found...'
 		fi
+	else
+		if test "${VAL#$WHO}" != $VAL; then
+			logger 'Disconnecting other user.'
+			logger 'You should be connected in 5 minutes'
+
+			fusermount -uz $(echo $VAL | awk '{print $2}')
+		fi
+			
 	fi
 	sleep 5m
 done &
