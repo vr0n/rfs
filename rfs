@@ -1,71 +1,54 @@
 #!/bin/bash
 
-# Remote File System IP for internal network
-IRFS="192.168.0.104"
+RFS_PORT="22"
 
-# Remote File System IP for external network
-#ERFS="XXX.XXX.X.XXX"
+usage() {
+  printf "Usage: %s <remote_username> <remote_path> <remote_ip> <remote_port>\n" "$0"
+  printf "or\n"
+  printf "Usage: %s close\n" "$0"
+}
 
-# SSH Config HostName for Jump Box
-JB="rfs"
+connect_rfs() {
+  # Set variables for remote connection
+  RFS_USER="$1"
+  RFS_PATH="$2"
+  RFS_IP="$3"
 
-# Remote File System SSH UserName
-RU="vr0n"
+  # Set variables for local user so they have permissions
+  # TODO: We should have an additional arg for local user so we don't have to guess
+  LOCAL_USER="$(who | awk -F " " '{print $1}' | head -n 1)"
+  LOCAL_UID="$(id -u $LOCAL_USER)"
+  LOCAL_GID="$(id -g $LOCAL_USER)"
 
-# Remote File System remote path (path to directory on remote machine)
-RPATH="/home/vr0n/drives/crypton/Documents"
+  # TODO: Make separate arg for local path in case a user doesn't want to use ~/Documents
+  # TODO: Add check in case this dir doesn't exist. It likely always will, but this is good practice
+  LOCAL_PATH="/home/$LOCAL_USER/Documents"
+  {
+    sshfs -p "$RFS_PORT" -o reconnect,allow_other,uid="${LOCAL_UID}",gid="${LOCAL_GID}" \
+      "${RFS_USER}"@"${RFS_IP}":"${RFS_PATH}" "$LOCAL_PATH" && \
+      printf "Connected RFS!\n"; } || \
+      printf "Failed to connect with USER: ${RFS_USER}, IP: ${RFS_IP}, PATH: ${RFS_PATH}\n"
+}
 
-# Local path variable LPATH mustbe edited as well (about 16 lines down!)
-while [ 1 ]; do
-	# Grab logged in user
-	WHO=$(who | awk -F " " '{print $1}' | head -n 1)
-	# Check if rfs is mounted for user
-	VAL=$(grep $IRFS'\|'$JB':/' /proc/mounts)
+if [ $# -ne 1 ] && [ $# -ne 3 ] && [ $# -ne 4 ]; then
+  usage
+  exit 1
+fi
 
-	if [ -z "$VAL" ]; then
-		# We still care about our root user, ya know...
-		if [[ $WHO != "root" ]]; then
-			HOME="/home/$WHO"
-		else
-			HOME="/root"
-		fi
+if [ "${1}" == "reset" ]; then
+  sudo fusermount -uz ~/Documents
+  exit 0
+fi
 
-		# Local path to mount Remote File System
-		LPATH="$HOME/Documents"
+if [ ! -z $4 ]; then
+  RFS_PORT="$4"
+fi
 
-		# switched to logger as notify-send can't be run in background
-		logger 'Connecting to RFS'
+SSHFS_PATH="$(type -P sshfs)"
+if [ -z $SSHFS_PATH ]; then
+  printf "Must have sshfs installed\n"
+  usage
+  exit 1
+fi
 
-		#Check local
-		if ssh $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
-		then
-			{ sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$IRFS:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Internally'; } || logger 'Failed to connect Internally...'
-		# Check external
-		## OPTION 1 (You have a jump box and you have setup your ~/.ssh/config):
-		elif ssh rfs '[ -d $RPATH ]' 2>/dev/null;
-		then
-			{ sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $JB:$RPATH $LPATH 2>/dev/null && logger 'Connected RFS Externally'; } || logger 'Failed to connect Externally...'
-		## OPTION 2 (You have a jump box and you have NOT setup your ~/.ssh/config):
-		#elif ssh -o ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS '[ -d $RPATH ]' 2>/dev/null;
-		#then
-			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO),ProxyCommand="ssh $RU@$ERFS -W %h:%p" $RU@$IRFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
-		## OPTION 3 (You do not have a jump box, in which case you probably do not need to setup your ~/.ssh/config):
-		#elif ssh $RU@$ERFS '[ -d $RPATH ]' 2>/dev/null;
-		#then
-			#sshfs -o _netdev,reconnect,allow_other,uid=$(id -u $WHO),gid=$(id -g $WHO) $RU@$ERFS:$RPATH $HOME/Documents 2>/dev/null && logger 'Connected RFS Externally';
-		# If all else fails...
-		else
-			logger 'Could Not Connect...'
-			logger 'No Server Found...'
-		fi
-	else
-		if test "${VAL#$WHO}" != $VAL; then
-			logger 'Disconnecting other user.'
-			logger 'You should be connected in 5 minutes'
-
-			fusermount -uz $(echo $VAL | awk '{print $2}')
-		fi
-			
-	fi
-	sleep 5m
-done &
+connect_rfs $1 $2 $3
